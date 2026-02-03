@@ -11,12 +11,23 @@ let agents = [];
 let foods = [];
 
 function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ใช้พื้นหลังแบบจางๆ เพื่อให้เห็นหาง (Tail Effect) จะดูสมูทขึ้น
+    ctx.fillStyle = 'rgba(26, 26, 26, 0.3)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // ... ส่วนการอัปเดต Agent ...
+    agents.forEach(agent => {
+        agent.update(agents, foods);
+        // วาด Agent
+        ctx.fillStyle = agent.color;
+        ctx.beginPath();
+        // วาดเป็นทรงหยดน้ำตามทิศทางที่วิ่งจะดูสวยขึ้น
+        ctx.arc(agent.x, agent.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+    });
     
-    // 1. สุ่มเกิดอาหาร (พืช)
-    if (Math.random() < 0.1) { // โอกาสเกิดอาหารในแต่ละเฟรม
-        foods.push(new Food(Math.random() * canvas.width, Math.random() * canvas.height));
-    }
+    requestAnimationFrame(loop);
+}
 
     // 2. วาดอาหาร
     foods.forEach(f => f.draw(ctx));
