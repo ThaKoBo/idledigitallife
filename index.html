@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artificial Life Simulation</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        canvas { border: 1px solid black; }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
+        #worldCanvas { display: block; margin: 0 auto; }
         #controls { margin: 20px; }
     </style>
 </head>
 <body>
     <h1>Simulation ชีวิตประดิษฐ์</h1>
-    <canvas id="worldCanvas" width="500" height="500"></canvas>
+    <canvas id="worldCanvas"></canvas>
     <div id="controls">
         <button onclick="startSimulation()">เริ่ม simulation</button>
         <button onclick="stopSimulation()">หยุด simulation</button>
         <p>จำนวน Agents: <span id="agentCount">0</span></p>
     </div>
-    <script src="simulation.js"></script>
+    <script type="module" src="engine.js"></script>
 </body>
 </html>
