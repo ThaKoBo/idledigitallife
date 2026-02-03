@@ -10,6 +10,7 @@ export class CreatureAgent {
         this.vision = Math.floor(Math.random() * 6) + 1; // 1-6
         this.metabolism = Math.floor(Math.random() * 4) + 1; // 1-4
         this.group = group; // 'A' หรือ 'B'
+        this.foodEaten = 0;
     }
 
     step() {
@@ -18,31 +19,40 @@ export class CreatureAgent {
         this.energy -= this.metabolism; // เผาผลาญ
         if (this.energy < 0) {
             this.die();
-        } else if (this.energy > 25) {
-            this.reproduce();
         }
-        this.fight(); // สู้รบ
+        this.checkReproduce(); // ตรวจสอบการแบ่งตัว
     }
 
     move() {
-        // หาตำแหน่งที่ดีที่สุดในวิสัยทัศน์ที่มีอาหารมากสุด (toroidal world)
-        let bestX = this.gridX;
-        let bestY = this.gridY;
-        let bestFood = 0;
-        for (let dx = -this.vision; dx <= this.vision; dx++) {
-            for (let dy = -this.vision; dy <= this.vision; dy++) {
-                const nx = (this.gridX + dx + this.model.width) % this.model.width;
-                const ny = (this.gridY + dy + this.model.height) % this.model.height;
-                const food = this.model.foodGrid[nx][ny];
-                if (food > bestFood || (food === bestFood && Math.random() < 0.5)) { // random tie-breaker
-                    bestFood = food;
-                    bestX = nx;
-                    bestY = ny;
+        // Override in subclass
+    }
+
+    eat() {
+        // Override in subclass
+    }
+
+    checkReproduce() {
+        const mates = this.model.getAgentsAt(this.gridX, this.gridY, this.group).filter(a => a !== this && a.foodEaten >= 2);
+        if (mates.length >= 1) {
+            const mate = mates[0];
+            if (this.id < mate.id) { // ประมวลผลครั้งเดียวต่อคู่
+                const numChildren = this.group === 'B' ? 2 : 1;
+                for (let i = 0; i < numChildren; i++) {
+                    const child = this.createChild();
+                    child.foodEaten = 0;
+                    child.energy = Math.floor((this.energy + mate.energy) / 2 / (numChildren + 1));
+                    child.gridX = this.gridX;
+                    child.gridY = this.gridY;
+                    child.posX = this.gridX;
+                    child.posY = this.gridY;
+                    this.model.agents.push(child);
                 }
+                this.foodEaten = 0;
+                mate.foodEaten = 0;
+                this.energy = Math.floor(this.energy / 2);
+                mate.energy = Math.floor(mate.energy / 2);
             }
         }
-        this.gridX = bestX;
-        this.gridY = bestY;
     }
 
     update(delta) {
@@ -76,38 +86,6 @@ export class CreatureAgent {
         }
     }
 
-    eat() {
-        const food = this.model.foodGrid[this.gridX][this.gridY];
-        this.energy += food;
-        this.model.foodGrid[this.gridX][this.gridY] = 0;
-    }
-
-    reproduce() {
-        const child = this.createChild();
-        child.energy = Math.floor(this.energy / 2);
-        this.energy = Math.floor(this.energy / 2);
-        child.gridX = this.gridX;
-        child.gridY = this.gridY;
-        child.posX = this.gridX;
-        child.posY = this.gridY;
-        this.model.agents.push(child);
-    }
-
-    fight() {
-        // หา enemies ในตำแหน่งเดียวกัน (ใช้ grid position)
-        const cellmates = this.model.agents.filter(a => a !== this && a.gridX === this.gridX && a.gridY === this.gridY && a.group !== this.group);
-        if (cellmates.length > 0) {
-            const enemy = cellmates[Math.floor(Math.random() * cellmates.length)];
-            if (this.energy > enemy.energy) {
-                this.energy += Math.floor(enemy.energy / 2);
-                enemy.energy = 0;
-            } else {
-                enemy.energy += Math.floor(this.energy / 2);
-                this.energy = 0;
-            }
-        }
-    }
-
     die() {
         this.model.agents = this.model.agents.filter(a => a !== this);
     }
@@ -115,8 +93,18 @@ export class CreatureAgent {
     draw(ctx, cellSize) {
         ctx.beginPath();
         ctx.arc(this.posX * cellSize + cellSize / 2, this.posY * cellSize + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
-        ctx.fillStyle = this.group === 'A' ? 'blue' : 'red'; // แยกสีตามกลุ่ม
+        ctx.fillStyle = this.group === 'A' ? 'red' : 'blue'; // A: แดง, B: ฟ้า
         ctx.fill();
+
+        if (this.foodEaten >= 1) {
+            ctx.save();
+            ctx.fillStyle = 'white';
+            ctx.font = `${Math.min(12, cellSize / 2)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.foodEaten, this.posX * cellSize + cellSize / 2, this.posY * cellSize + cellSize / 2);
+            ctx.restore();
+        }
     }
 
     // สำหรับ subclass
@@ -131,6 +119,38 @@ export class AgentGroupA extends CreatureAgent {
         this.vision += 1; // เพิ่ม vision สำหรับ Group A
     }
 
+    move() {
+        // หา cell ที่มี AgentB เยอะสุด
+        let bestX = this.gridX;
+        let bestY = this.gridY;
+        let bestCount = 0;
+        for (let dx = -this.vision; dx <= this.vision; dx++) {
+            for (let dy = -this.vision; dy <= this.vision; dy++) {
+                const nx = (this.gridX + dx + this.model.width) % this.model.width;
+                const ny = (this.gridY + dy + this.model.height) % this.model.height;
+                const count = this.model.getAgentsAt(nx, ny, 'B').length;
+                if (count > bestCount || (count === bestCount && Math.random() < 0.5)) {
+                    bestCount = count;
+                    bestX = nx;
+                    bestY = ny;
+                }
+            }
+        }
+        this.gridX = bestX;
+        this.gridY = bestY;
+    }
+
+    eat() {
+        // กิน AgentB
+        const preys = this.model.getAgentsAt(this.gridX, this.gridY, 'B');
+        if (preys.length > 0) {
+            const prey = preys[Math.floor(Math.random() * preys.length)];
+            this.foodEaten += 1;
+            this.energy += Math.floor(prey.energy / 2);
+            prey.die();
+        }
+    }
+
     createChild() {
         return new AgentGroupA(this.model.nextId++, this.model, this.gridX, this.gridY);
     }
@@ -140,6 +160,38 @@ export class AgentGroupB extends CreatureAgent {
     constructor(id, model, x, y) {
         super(id, model, x, y, 'B');
         this.metabolism = Math.max(1, this.metabolism - 1); // ลด metabolism
+    }
+
+    move() {
+        // หา cell ที่มี AgentFood เยอะสุด
+        let bestX = this.gridX;
+        let bestY = this.gridY;
+        let bestCount = 0;
+        for (let dx = -this.vision; dx <= this.vision; dx++) {
+            for (let dy = -this.vision; dy <= this.vision; dy++) {
+                const nx = (this.gridX + dx + this.model.width) % this.model.width;
+                const ny = (this.gridY + dy + this.model.height) % this.model.height;
+                const count = this.model.getFoodAt(nx, ny).length;
+                if (count > bestCount || (count === bestCount && Math.random() < 0.5)) {
+                    bestCount = count;
+                    bestX = nx;
+                    bestY = ny;
+                }
+            }
+        }
+        this.gridX = bestX;
+        this.gridY = bestY;
+    }
+
+    eat() {
+        // กิน AgentFood
+        const foods = this.model.getFoodAt(this.gridX, this.gridY);
+        if (foods.length > 0) {
+            const food = foods[Math.floor(Math.random() * foods.length)];
+            this.foodEaten += 1;
+            this.energy += 10;
+            this.model.foodAgents = this.model.foodAgents.filter(f => f !== food);
+        }
     }
 
     createChild() {
