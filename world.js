@@ -1,8 +1,9 @@
-import { AgentGroupA, AgentGroupB } from './agents.js';
+import { AgentHunt } from './agentHunt.js';
+import { AgentPrey } from './agentPrey.js';
 import { AgentFood } from './agentFood.js';
 
 export class SimulationModel {
-    constructor(width, height, numAgents) {
+    constructor(width, height) {
         this.width = width;
         this.height = height;
         this.agents = [];
@@ -23,18 +24,18 @@ export class SimulationModel {
     }
 
     initAgents() {
-        // สร้าง AgentGroupA 2 ตัว (สีแดง)
+        // สร้าง AgentHunt 2 ตัว (สีแดง)
         for (let i = 0; i < 2; i++) {
             const x = Math.floor(Math.random() * this.width);
             const y = Math.floor(Math.random() * this.height);
-            const agent = new AgentGroupA(this.nextId++, this, x, y);
+            const agent = new AgentHunt(this.nextId++, this, x, y);
             this.agents.push(agent);
         }
-        // สร้าง AgentGroupB 2 ตัว (สีฟ้า)
+        // สร้าง AgentPrey 2 ตัว (สีฟ้า)
         for (let i = 0; i < 2; i++) {
             const x = Math.floor(Math.random() * this.width);
             const y = Math.floor(Math.random() * this.height);
-            const agent = new AgentGroupB(this.nextId++, this, x, y);
+            const agent = new AgentPrey(this.nextId++, this, x, y);
             this.agents.push(agent);
         }
     }
