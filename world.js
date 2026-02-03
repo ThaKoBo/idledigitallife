@@ -45,6 +45,10 @@ export class SimulationModel {
         }
     }
 
+    updateAgents(delta) {
+        this.agents.forEach(agent => agent.update(delta));
+    }
+
     draw(ctx, cellSize) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
