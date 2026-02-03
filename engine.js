@@ -1,4 +1,5 @@
 import { RedAgent } from './RedAgent.js';
+import { GreenAgent } from './GreenAgent.js'; // นำเข้าตัวใหม่
 
 const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
@@ -12,9 +13,18 @@ function loadWorld() {
     const saved = localStorage.getItem('mySociety');
     if (saved) {
         const data = JSON.parse(saved);
-        return data.map(a => new RedAgent(a.x, a.y)); // ในอนาคตต้องเช็ก Type เพื่อสร้าง Object ให้ถูกตัว
+        return data.map(a => {
+            // เช็ค Type จากข้อมูลที่ Save ไว้เพื่อสร้าง Object ให้ถูก Class
+            if (a.type === 'RedAgent') return new RedAgent(a.x, a.y);
+            if (a.type === 'GreenAgent') return new GreenAgent(a.x, a.y);
+        });
     }
-    return [new RedAgent(100, 100), new RedAgent(200, 200)]; // ถ้าไม่มีข้อมูลให้เริ่มใหม่ 2 ตัว
+    // ถ้าเริ่มใหม่ ให้มีทั้งสองสี
+    return [
+        new RedAgent(100, 100), 
+        new GreenAgent(400, 400),
+        new GreenAgent(450, 420)
+    ];
 }
 
 agents = loadWorld();
