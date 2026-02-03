@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Social Evolution Lab</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+        canvas { display: block; background: #000; }
+        #controls { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <h3>Ecosystem Monitor</h3>
+    <div id="stats">กลุ่มสีแดง (ดุร้าย): 0 | กลุ่มสีเขียว (รักสงบ): 0</div>
+    <p><small>อาหารสีเหลือง: ให้พลังงาน</small></p>
+</div>
+
+<canvas id="world"></canvas>
+
+<script>
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+const stats = document.getElementById('stats');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let agents = [];
+let foods = [];
+
+// --- การตั้งค่าพื้นฐาน ---
+const CONFIG = {
+    foodCount: 50,
+    initialAgents: 20,
+    reproEnergy: 150, // พลังงานที่ใช้ในการขยายพันธุ์
+    starveLimit: 0    // พลังงานหมด = ตาย
+};
+
+class Agent {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type; // 'red' (Aggressive) หรือ 'green' (Passive)
+        this.energy = 100;
+        this.size = type === 'red' ? 6 : 5;
+        this.speed = type === 'red' ? 2.5 : 2;
+        this.angle = Math.random() * Math.PI * 2;
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = this.type === 'red' ? '#ff4d4d' : '#2ecc71';
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    update() {
+        // เคลื่อนที่แบบสุ่ม (Brownian motion นิดๆ)
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.energy -= 0.1; // เสียพลังงานตลอดเวลา
+
+        // ชนขอบโลก
+        if (this.x < 0 || this.x > canvas.width) this.angle = Math.PI - this.angle;
+        if (this.y < 0 || this.y > canvas.height) this.angle = -this.angle;
+
+        if (Math.random() < 0.05) this.angle += (Math.random() - 0.5);
+
+        // หาอาหาร
+        foods.forEach((f, index) => {
+            let dist = Math.hypot(this.x - f.x, this.y - f.y);
+            if (dist < 10) {
+                this.energy += 30;
+                foods.splice(index, 1);
+            }
+        });
+
+        // ระบบต่อสู้: ถ้าแดงเจอเขียว แดงจะโจมตี
+        if (this.type === 'red') {
+            agents.forEach((other, index) => {
+                if (other.type === 'green') {
+                    let dist = Math.hypot(this.x - other.x, this.y - other.y);
+                    if (dist < 15) {
+                        other.energy -= 50; // โจมตีเขียว
+                        this.energy += 10;  // ได้รับทรัพยากรจากการชนะ
+                    }
+                }
+            });
+        }
+
+        // การขยายพันธุ์
+        if (this.energy > CONFIG.reproEnergy) {
+            this.energy /= 2;
+            agents.push(new Agent(this.x, this.y, this.type));
+        }
+    }
+}
+
+function spawnFood() {
+    if (foods.length < CONFIG.foodCount) {
+        foods.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
+    }
+}
+
+function init() {
+    for (let i = 0; i < CONFIG.initialAgents; i++) {
+        let type = Math.random() > 0.5 ? 'red' : 'green';
+        agents.push(new Agent(Math.random() * canvas.width, Math.random() * canvas.height, type));
+    }
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    spawnFood();
+    
+    // วาดอาหาร
+    foods.forEach(f => {
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(f.x, f.y, 4, 4);
+    });
+
+    // อัปเดตและวาด Agent
+    agents = agents.filter(a => a.energy > CONFIG.starveLimit); // ลบตัวที่ตาย
+    agents.forEach(a => {
+        a.update();
+        a.draw();
+    });
+
+    // อัปเดต Stats
+    let redCount = agents.filter(a => a.type === 'red').length;
+    let greenCount = agents.filter(a => a.type === 'green').length;
+    stats.innerText = `กลุ่มสีแดง (ดุร้าย): ${redCount} | กลุ่มสีเขียว (รักสงบ): ${greenCount}`;
+
+    requestAnimationFrame(animate);
+}
+
+init();
+animate();
+</script>
+</body>
+</html>
