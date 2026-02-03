@@ -25,7 +25,7 @@ window.startSimulation = function() {
     if (!model) {
         canvas = document.getElementById('worldCanvas');
         ctx = canvas.getContext('2d');
-        model = new SimulationModel(50, 50, 100); // 50x50 grid, 100 agents
+        model = new SimulationModel(50, 50, 4); // 50x50 grid, total 4 agents (2A + 2B)
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
     }
