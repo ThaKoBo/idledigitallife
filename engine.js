@@ -1,5 +1,6 @@
 import { RedAgent } from './RedAgent.js';
-import { GreenAgent } from './GreenAgent.js'; // นำเข้าตัวใหม่
+import { GreenAgent } from './GreenAgent.js';
+import { Food } from './Food.js';
 
 const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
@@ -7,33 +8,27 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let agents = [];
-
-// ฟังก์ชันโหลดข้อมูลที่บันทึกไว้
-function loadWorld() {
-    const saved = localStorage.getItem('mySociety');
-    if (saved) {
-        const data = JSON.parse(saved);
-        return data.map(a => {
-            // เช็ค Type จากข้อมูลที่ Save ไว้เพื่อสร้าง Object ให้ถูก Class
-            if (a.type === 'RedAgent') return new RedAgent(a.x, a.y);
-            if (a.type === 'GreenAgent') return new GreenAgent(a.x, a.y);
-        });
-    }
-    // ถ้าเริ่มใหม่ ให้มีทั้งสองสี
-    return [
-        new RedAgent(100, 100), 
-        new GreenAgent(400, 400),
-        new GreenAgent(450, 420)
-    ];
-}
-
-agents = loadWorld();
+let foods = [];
 
 function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    agents.forEach((agent, index) => {
-        agent.update(agents);
+    // 1. สุ่มเกิดอาหาร (พืช)
+    if (Math.random() < 0.1) { // โอกาสเกิดอาหารในแต่ละเฟรม
+        foods.push(new Food(Math.random() * canvas.width, Math.random() * canvas.height));
+    }
+
+    // 2. วาดอาหาร
+    foods.forEach(f => f.draw(ctx));
+
+    // 3. จัดการ Agent
+    let newBabies = []; // เก็บตัวที่เกิดใหม่ในเฟรมนี้
+    
+    agents = agents.filter(a => a.energy > 0); // ลบตัวที่ตาย
+
+    agents.forEach(agent => {
+        // อัปเดตพฤติกรรม (ส่งทั้ง agents และ foods ให้ไปคำนวณ)
+        agent.update(agents, foods);
         
         // วาดตัวละคร
         ctx.fillStyle = agent.color;
@@ -41,16 +36,21 @@ function loop() {
         ctx.arc(agent.x, agent.y, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        if (agent.energy <= 0) agents.splice(index, 1);
+        // ตรวจสอบการขยายพันธุ์
+        if (agent.canReproduce()) {
+            newBabies.push(agent.reproduce());
+        }
     });
 
-    // บันทึกสถานะทุกๆ 2 วินาที (Persistence)
-    if (Math.random() < 0.01) {
-        const state = agents.map(a => a.saveState());
-        localStorage.setItem('mySociety', JSON.stringify(state));
-    }
+    // เพิ่มเด็กเกิดใหม่เข้าไปในระบบ
+    agents.push(...newBabies);
+
+    // ป้องกันประชากรล้น (Limit) เพื่อไม่ให้คอมค้าง
+    if (agents.length > 200) agents.shift();
 
     requestAnimationFrame(loop);
 }
 
+// เริ่มต้นระบบ
+agents = [new GreenAgent(100, 100), new RedAgent(300, 300)];
 loop();
