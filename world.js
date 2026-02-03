@@ -8,7 +8,7 @@ export class SimulationModel {
         this.foodGrid = Array.from({length: width}, () => Array(height).fill(0));
         this.nextId = 0;
         this.initFood();
-        this.initAgents(numAgents);
+        this.initAgents();
         this.running = false;
     }
 
@@ -20,12 +20,19 @@ export class SimulationModel {
         }
     }
 
-    initAgents(numAgents) {
-        for (let i = 0; i < numAgents; i++) {
+    initAgents() {
+        // สร้าง AgentGroupA 2 ตัว
+        for (let i = 0; i < 2; i++) {
             const x = Math.floor(Math.random() * this.width);
             const y = Math.floor(Math.random() * this.height);
-            const group = Math.random() < 0.5 ? 'A' : 'B';
-            const agent = group === 'A' ? new AgentGroupA(this.nextId++, this, x, y) : new AgentGroupB(this.nextId++, this, x, y);
+            const agent = new AgentGroupA(this.nextId++, this, x, y);
+            this.agents.push(agent);
+        }
+        // สร้าง AgentGroupB 2 ตัว
+        for (let i = 0; i < 2; i++) {
+            const x = Math.floor(Math.random() * this.width);
+            const y = Math.floor(Math.random() * this.height);
+            const agent = new AgentGroupB(this.nextId++, this, x, y);
             this.agents.push(agent);
         }
     }
@@ -50,7 +57,9 @@ export class SimulationModel {
     }
 
     draw(ctx, cellSize) {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        // เติม background สีน้ำตาลอ่อน
+        ctx.fillStyle = '#D2B48C'; // light brown
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
         // วาดอาหาร (สีเขียวตามปริมาณ)
         for (let x = 0; x < this.width; x++) {
