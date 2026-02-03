@@ -2,8 +2,10 @@ export class CreatureAgent {
     constructor(id, model, x, y, group) {
         this.id = id;
         this.model = model;
-        this.x = x;
-        this.y = y;
+        this.gridX = x;
+        this.gridY = y;
+        this.posX = x;
+        this.posY = y;
         this.energy = Math.floor(Math.random() * 21) + 5; // 5-25
         this.vision = Math.floor(Math.random() * 6) + 1; // 1-6
         this.metabolism = Math.floor(Math.random() * 4) + 1; // 1-4
@@ -24,13 +26,13 @@ export class CreatureAgent {
 
     move() {
         // หาตำแหน่งที่ดีที่สุดในวิสัยทัศน์ที่มีอาหารมากสุด (toroidal world)
-        let bestX = this.x;
-        let bestY = this.y;
+        let bestX = this.gridX;
+        let bestY = this.gridY;
         let bestFood = 0;
         for (let dx = -this.vision; dx <= this.vision; dx++) {
             for (let dy = -this.vision; dy <= this.vision; dy++) {
-                const nx = (this.x + dx + this.model.width) % this.model.width;
-                const ny = (this.y + dy + this.model.height) % this.model.height;
+                const nx = (this.gridX + dx + this.model.width) % this.model.width;
+                const ny = (this.gridY + dy + this.model.height) % this.model.height;
                 const food = this.model.foodGrid[nx][ny];
                 if (food > bestFood || (food === bestFood && Math.random() < 0.5)) { // random tie-breaker
                     bestFood = food;
@@ -39,28 +41,61 @@ export class CreatureAgent {
                 }
             }
         }
-        this.x = bestX;
-        this.y = bestY;
+        this.gridX = bestX;
+        this.gridY = bestY;
+    }
+
+    update(delta) {
+        // คำนวณ dx, dy โดยพิจารณา toroidal (shortest path)
+        let dx = this.gridX - this.posX;
+        if (Math.abs(dx) > this.model.width / 2) {
+            dx -= Math.sign(dx) * this.model.width;
+        }
+        let dy = this.gridY - this.posY;
+        if (Math.abs(dy) > this.model.height / 2) {
+            dy -= Math.sign(dy) * this.model.height;
+        }
+
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0.01) {
+            const speed = 5; // grid units per second
+            const moveDist = speed * delta;
+            if (moveDist >= dist) {
+                this.posX = this.gridX;
+                this.posY = this.gridY;
+            } else {
+                this.posX += (dx / dist) * moveDist;
+                this.posY += (dy / dist) * moveDist;
+            }
+
+            // Wrap position if needed (for draw)
+            if (this.posX < 0) this.posX += this.model.width;
+            else if (this.posX >= this.model.width) this.posX -= this.model.width;
+            if (this.posY < 0) this.posY += this.model.height;
+            else if (this.posY >= this.model.height) this.posY -= this.model.height;
+        }
     }
 
     eat() {
-        const food = this.model.foodGrid[this.x][this.y];
+        const food = this.model.foodGrid[this.gridX][this.gridY];
         this.energy += food;
-        this.model.foodGrid[this.x][this.y] = 0;
+        this.model.foodGrid[this.gridX][this.gridY] = 0;
     }
 
     reproduce() {
         const child = this.createChild();
         child.energy = Math.floor(this.energy / 2);
         this.energy = Math.floor(this.energy / 2);
-        child.x = this.x;
-        child.y = this.y;
+        child.gridX = this.gridX;
+        child.gridY = this.gridY;
+        child.posX = this.gridX;
+        child.posY = this.gridY;
         this.model.agents.push(child);
     }
 
     fight() {
-        // หา enemies ในตำแหน่งเดียวกัน
-        const cellmates = this.model.agents.filter(a => a !== this && a.x === this.x && a.y === this.y && a.group !== this.group);
+        // หา enemies ในตำแหน่งเดียวกัน (ใช้ grid position)
+        const cellmates = this.model.agents.filter(a => a !== this && a.gridX === this.gridX && a.gridY === this.gridY && a.group !== this.group);
         if (cellmates.length > 0) {
             const enemy = cellmates[Math.floor(Math.random() * cellmates.length)];
             if (this.energy > enemy.energy) {
@@ -79,14 +114,14 @@ export class CreatureAgent {
 
     draw(ctx, cellSize) {
         ctx.beginPath();
-        ctx.arc(this.x * cellSize + cellSize / 2, this.y * cellSize + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
+        ctx.arc(this.posX * cellSize + cellSize / 2, this.posY * cellSize + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
         ctx.fillStyle = this.group === 'A' ? 'blue' : 'red'; // แยกสีตามกลุ่ม
         ctx.fill();
     }
 
     // สำหรับ subclass
     createChild() {
-        return new CreatureAgent(this.model.nextId++, this.model, this.x, this.y, this.group);
+        return new CreatureAgent(this.model.nextId++, this.model, this.gridX, this.gridY, this.group);
     }
 }
 
@@ -97,7 +132,7 @@ export class AgentGroupA extends CreatureAgent {
     }
 
     createChild() {
-        return new AgentGroupA(this.model.nextId++, this.model, this.x, this.y);
+        return new AgentGroupA(this.model.nextId++, this.model, this.gridX, this.gridY);
     }
 }
 
@@ -108,6 +143,6 @@ export class AgentGroupB extends CreatureAgent {
     }
 
     createChild() {
-        return new AgentGroupB(this.model.nextId++, this.model, this.x, this.y);
+        return new AgentGroupB(this.model.nextId++, this.model, this.gridX, this.gridY);
     }
 }
