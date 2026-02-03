@@ -7,6 +7,10 @@ let canvas;
 let ctx;
 let animationId;
 let cellSize;
+let lastTime = 0;
+let accumulator = 0;
+const logicFPS = 5; // 5 steps ต่อวินาที เพื่อเห็น motion ชัดเจน
+const logicStep = 1 / logicFPS;
 
 // ฟังก์ชัน resize canvas ตาม browser width
 function resizeCanvas() {
@@ -26,7 +30,9 @@ window.startSimulation = function() {
         resizeCanvas();
     }
     model.running = true;
-    loop();
+    lastTime = 0;
+    accumulator = 0;
+    requestAnimationFrame(loop);
 };
 
 // หยุด simulation
@@ -36,11 +42,22 @@ window.stopSimulation = function() {
 };
 
 // Loop การอัปเดต
-function loop() {
+function loop(timestamp) {
     if (model.running) {
-        model.step();
+        if (!lastTime) lastTime = timestamp;
+        let delta = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        accumulator += delta;
+        while (accumulator >= logicStep) {
+            model.step();
+            accumulator -= logicStep;
+        }
+
+        model.updateAgents(delta);
         model.draw(ctx, cellSize);
         document.getElementById('agentCount').textContent = model.agents.length;
+
         animationId = requestAnimationFrame(loop);
     }
 }
