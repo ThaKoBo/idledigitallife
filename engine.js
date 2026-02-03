@@ -48,6 +48,8 @@ function loop(timestamp) {
         let delta = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
+        model.spawnFood(delta);
+
         accumulator += delta;
         while (accumulator >= logicStep) {
             model.step();
